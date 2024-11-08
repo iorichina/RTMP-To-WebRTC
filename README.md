@@ -29,7 +29,6 @@ To install the required dependencies, follow these steps:
    go get github.com/pion/webrtc/v4
    go get github.com/pion/rtp
    go get github.com/gorilla/websocket
-   
 
 ## Start server
 
