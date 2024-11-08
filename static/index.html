@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WebRTC Stream</title>
+  </head>
+  <body>
+    <video
+      id="video"
+      autoplay
+      playsinline
+      controls
+      style="width: 640px; height: 480px"
+    ></video>
+    <div id="status"></div>
+    <script>
+      const video = document.getElementById("video");
+      const status = document.getElementById("status");
+      let pc;
+      let ws;
+
+      function updateStatus(message) {
+        status.textContent = message;
+        console.log(message);
+      }
+
+      function connect() {
+        ws = new WebSocket("ws://" + window.location.host + "/ws");
+        pc = new RTCPeerConnection({
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        });
+
+        // Add transceivers
+        pc.addTransceiver("video", { direction: "recvonly" });
+        pc.addTransceiver("audio", { direction: "recvonly" });
+
+        pc.ontrack = function (event) {
+          updateStatus("Received track: " + event.track.kind);
+          if (event.track.kind === "video") {
+            video.srcObject = event.streams[0];
+          }
+        };
+
+        pc.onicecandidate = function (event) {
+          if (!ws) return;
+          if (event.candidate) {
+            ws.send(
+              JSON.stringify({
+                type: "ice",
+                ice: event.candidate.toJSON(),
+              })
+            );
+          }
+        };
+
+        pc.oniceconnectionstatechange = function () {
+          updateStatus("ICE Connection State: " + pc.iceConnectionState);
+        };
+
+        pc.onsignalingstatechange = function () {
+          updateStatus("Signaling State: " + pc.signalingState);
+        };
+
+        ws.onopen = async function () {
+          updateStatus("WebSocket connected - creating offer");
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            ws.send(
+              JSON.stringify({
+                type: "offer",
+                sdp: pc.localDescription,
+              })
+            );
+          } catch (e) {
+            updateStatus("Error creating offer: " + e);
+          }
+        };
+
+        ws.onmessage = async function (event) {
+          try {
+            const msg = JSON.parse(event.data);
+            updateStatus("Received message type: " + msg.type);
+
+            if (msg.type === "answer") {
+              await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+            } else if (msg.type === "ice" && msg.ice) {
+              try {
+                await pc.addIceCandidate(msg.ice);
+              } catch (e) {
+                updateStatus("Error adding ICE candidate: " + e);
+              }
+            }
+          } catch (e) {
+            updateStatus("Error handling message: " + e);
+          }
+        };
+
+        ws.onerror = function (error) {
+          updateStatus("WebSocket Error: " + error);
+        };
+
+        ws.onclose = function () {
+          updateStatus("WebSocket Closed");
+          // Cleanup
+          if (pc) {
+            pc.close();
+            pc = null;
+          }
+          // Attempt to reconnect after a delay
+          setTimeout(connect, 5000);
+        };
+      }
+
+      // Start the connection
+      connect();
+    </script>
+  </body>
+</html>
