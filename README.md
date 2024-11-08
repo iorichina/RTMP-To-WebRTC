@@ -4,7 +4,7 @@ This project re-streams media from an RTMP source to WebRTC using a Go server an
 
 go run main.go
 
-ffmpeg -re -i input.mp4 -map 0:v -c:v libvpx -payload_type 96 -ssrc 1 -f rtp rtp://127.0.0.1:5004 -map 0:a -c:a libopus -payload_type 111 -ssrc 2 -f rtp rtp://127.0.0.1:5006
+ffmpeg -re -i input.mp4 -map 0:v -c:v libvpx -payload_type 96 -ssrc 1 -f rtp rtp://127.0.0.1:5004 -map 0:a -c:a libopus -payload_type 111 -ssrc 2 -f rtp rtp://127.0.0.1:5004
 
 
 
