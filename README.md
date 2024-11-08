@@ -42,9 +42,15 @@ go run main.go
 ffmpeg -re -i input.mp4 -map 0:v -c:v libvpx -payload_type 96 -ssrc 1 -f rtp rtp://127.0.0.1:5004 -map 0:a -c:a libopus -payload_type 111 -ssrc 2 -f rtp rtp://127.0.0.1:5004
 ```
 
+
+
+```bash
+ffmpeg -re -i rtmp://your-rtmp-server/stream-key -map 0:v -c:v libvpx -payload_type 96 -ssrc 1 -f rtp rtp://127.0.0.1:5004 -map 0:a -c:a libopus -payload_type 111 -ssrc 2 -f rtp rtp://127.0.0.1:5004
+```
+
 #### Note:
 
-Replace input.mp4 with the path to your media file.
+Replace input.mp4/rtmp_url with the path to your media file.
 
 
 
