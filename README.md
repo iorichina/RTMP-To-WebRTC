@@ -9,18 +9,27 @@ WebSocket-based signaling for automated SDP and ICE candidate exchange.
 Configurable RTP ports for audio and video ingestion.
 Improved error handling and logging for production-ready robustness.
 
-## Project Structure
+## Prerequisites
 
-#### 1) main.go
-Go server handling WebRTC peer connections, RTP packet ingestion, and WebSocket signaling.
+Before getting started, make sure you have the following tools installed:
 
-#### 2) main.go
-app.js Client-side JavaScript for WebRTC connection and signaling.
+- Go Programming Language
+- ffmpeg
 
-#### 3) index.html
-Frontend UI for initiating and viewing the WebRTC stream.
+## Installation
 
-Replace input.mp4 with the path to your media file.
+To install the required dependencies, follow these steps:
+
+1. **Clone**  
+   Make sure you have Go installed. If not, download it from [the Go website](https://golang.org/dl/).
+
+2. **Add these modules**  
+
+   ```bash
+   go get github.com/pion/webrtc/v4
+   go get github.com/pion/rtp
+   go get github.com/gorilla/websocket
+   
 
 ## Start server
 
@@ -37,4 +46,14 @@ ffmpeg -re -i input.mp4 -map 0:v -c:v libvpx -payload_type 96 -ssrc 1 -f rtp rtp
 #### Note:
 
 Replace input.mp4 with the path to your media file.
+
+
+
+### Packages used
+
+This project uses the following Go packages:
+
+- [`github.com/pion/webrtc/v4`](https://github.com/pion/webrtc) – A WebRTC API implementation for Go.
+- [`github.com/pion/rtp`](https://github.com/pion/rtp) – RTP (Real-Time Protocol) handling for Go.
+- [`github.com/gorilla/websocket`](https://github.com/gorilla/websocket) – A WebSocket implementation for Go.
 
