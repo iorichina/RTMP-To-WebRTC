@@ -9,7 +9,18 @@
       class="flex items-center justify-center h-screen text-slate-900 bg-slate-100"
     >
       <div class="p-10 rounded-lg bg-white">
-        <h1 class="text-2xl font-bold mb-4">WebRTC Client</h1>
+        <div class="flex items-center gap-4 mb-4">
+          <h1 class="text-2xl font-bold">WebRTC Client</h1>
+          <div class="flex items-center gap-2">
+            <div
+              id="streamStatus"
+              class="w-3 h-3 rounded-full bg-red-500"
+            ></div>
+            <span id="streamStatusText" class="text-sm text-gray-600"
+              >Stream Offline</span
+            >
+          </div>
+        </div>
         <video
           id="video"
           width="640"
@@ -28,17 +39,43 @@
     <script>
       const video = document.getElementById("video");
       const status = document.getElementById("status");
+      const streamStatus = document.getElementById("streamStatus");
+      const streamStatusText = document.getElementById("streamStatusText");
       let pc;
       let ws;
+      let lastPacketTime = 0;
+      let streamCheckInterval;
 
       function updateStatus(message) {
         status.textContent = message;
         console.log(message);
       }
 
+      function updateStreamStatus(isActive) {
+        if (isActive) {
+          streamStatus.classList.remove("bg-red-500");
+          streamStatus.classList.add("bg-green-500");
+          streamStatusText.textContent = "Stream Online";
+        } else {
+          streamStatus.classList.remove("bg-green-500");
+          streamStatus.classList.add("bg-red-500");
+          streamStatusText.textContent = "Stream Offline";
+        }
+      }
+
       function connect() {
-        ws = new WebSocket("ws://localhost:8080/ws"); // Connect to WebSocket at 'localhost:8080/ws'
-        // ws = new WebSocket("ws://" + window.location.host + "/ws"); // Connect to WebSocket at the current host's '/ws' endpoint
+        // Add connection state tracking
+        if (ws && ws.readyState === WebSocket.CONNECTING) {
+          updateStatus("WebSocket connection already in progress");
+          return;
+        }
+
+        if (pc) {
+          pc.close();
+          pc = null;
+        }
+
+        ws = new WebSocket("ws://localhost:8080/ws");
         pc = new RTCPeerConnection({
           iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
@@ -103,6 +140,8 @@
               } catch (e) {
                 updateStatus("Error adding ICE candidate: " + e);
               }
+            } else if (msg.type === "stream_status") {
+              updateStreamStatus(msg.error === "true");
             }
           } catch (e) {
             updateStatus("Error handling message: " + e);
@@ -114,16 +153,28 @@
         };
 
         ws.onclose = function () {
-          updateStatus("WebSocket Closed");
+          updateStatus(
+            "WebSocket Closed - attempting to reconnect in 5 seconds"
+          );
           // Cleanup
           if (pc) {
             pc.close();
             pc = null;
           }
-          // Attempt to reconnect after a delay
+          ws = null;
+          // Attempt to reconnect after a delay, but only if we're not already connecting
           setTimeout(connect, 5000);
         };
       }
+
+      // Add connection error handling
+      window.addEventListener("unload", () => {
+        if (streamCheckInterval) {
+          clearInterval(streamCheckInterval);
+        }
+        if (ws) ws.close();
+        if (pc) pc.close();
+      });
 
       // Start the connection
       connect();

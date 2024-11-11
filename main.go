@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/pion/rtp"
+
+	"github.com/gorilla/websocket"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media/samplebuilder"
@@ -33,6 +34,8 @@ type WebRTCManager struct {
 	mu             sync.Mutex
 	udpListener    *net.UDPConn
 	stopChan       chan struct{}
+	lastPacketTime time.Time
+	statusTicker   *time.Ticker
 }
 
 var upgrader = websocket.Upgrader{
@@ -183,6 +186,12 @@ func newWebRTCManager(wsConn *websocket.Conn) (*WebRTCManager, error) {
 		log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
 	})
 
+	manager.lastPacketTime = time.Now()
+	manager.statusTicker = time.NewTicker(1 * time.Second)
+
+	// Start status monitoring
+	go manager.monitorStreamStatus()
+
 	return manager, nil
 }
 
@@ -304,6 +313,11 @@ func (m *WebRTCManager) handleMedia() {
 						}
 					}
 				}
+
+				// Update lastPacketTime when we receive any packet
+				if err == nil && n > 0 {
+					m.lastPacketTime = time.Now()
+				}
 			}
 		}
 	}()
@@ -323,6 +337,34 @@ func (m *WebRTCManager) close() {
 	// Close the peer connection
 	if err := m.peerConnection.Close(); err != nil {
 		log.Printf("Error closing peer connection: %v", err)
+	}
+
+	if m.statusTicker != nil {
+		m.statusTicker.Stop()
+	}
+}
+
+func (m *WebRTCManager) monitorStreamStatus() {
+	for {
+		select {
+		case <-m.stopChan:
+			return
+		case <-m.statusTicker.C:
+			timeSinceLastPacket := time.Since(m.lastPacketTime)
+			isActive := timeSinceLastPacket < 2*time.Second
+			
+			// Send status update through WebSocket
+			m.mu.Lock()
+			err := m.wsConn.WriteJSON(SignalingMessage{
+				Type: "stream_status",
+				Error: fmt.Sprintf("%v", isActive),
+			})
+			m.mu.Unlock()
+			
+			if err != nil {
+				log.Printf("Error sending stream status: %v", err)
+			}
+		}
 	}
 }
 
