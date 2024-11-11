@@ -3,15 +3,28 @@
   <head>
     <title>WebRTC Stream</title>
   </head>
+  <link
+    href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css"
+    rel="stylesheet"
+  />
   <body>
-    <video
-      id="video"
-      autoplay
-      playsinline
-      controls
-      style="width: 640px; height: 480px"
-    ></video>
-    <div id="status"></div>
+    <div class="flex items-center justify-center h-screen">
+      <div class="bg-white p-8 rounded-md shadow-md">
+        <h1 class="text-2xl font-bold mb-4">WebRTC Client</h1>
+        <video
+          id="video"
+          width="640"
+          height="480"
+          autoplay
+          playsinline
+          controls
+        ></video>
+        <div class="mt-4 text-center">
+          <div id="status"></div>
+        </div>
+      </div>
+    </div>
+
     <script>
       const video = document.getElementById("video");
       const status = document.getElementById("status");
