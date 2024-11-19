@@ -13,7 +13,7 @@ Improved error handling and logging for production-ready robustness.
 
 Before getting started, make sure you have the following tools installed:
 
-- Go Programming Language, , download it from [the Go website](https://golang.org/dl/).
+- Go (Golang), , download it from [the Go website](https://golang.org/dl/).
 - ffmpeg, [Get ffmpeg](https://www.ffmpeg.org/download.html).
 
 ## Installation
@@ -47,7 +47,7 @@ ffmpeg -re -i rtmp://your-rtmp-server/stream-key -map 0:v -c:v libvpx -payload_t
 
 #### Note:
 
-Replace input.mp4/rtmp_url with the path to your media file.
+Replace input.mp4/rtmp_url with the path to your media file. (a file named input.mp4 is already included for testing)
 
 
 
