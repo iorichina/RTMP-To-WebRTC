@@ -45,12 +45,6 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Add this at the top level of your code
-type Client struct {
-	manager *WebRTCManager
-	active  bool
-}
-
 var (
 	clients    = make(map[*WebRTCManager]bool)
 	clientsMux sync.RWMutex
@@ -66,6 +60,8 @@ func main() {
 		log.Fatal("Failed to start UDP listener:", err)
 	}
 	defer udpListener.Close()
+
+	go runTurnServer()
 
 	// Start the media handling for all clients
 	go handleMediaForAllClients()
@@ -128,11 +124,15 @@ func newWebRTCManager(wsConn *websocket.Conn) (*WebRTCManager, error) {
 	// Create API with MediaEngine
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
 
-	// Create PeerConnection with STUN server
 	config := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
-				URLs: []string{"stun:stun.l.google.com:19302"},
+				URLs: []string{"stun:stun.l.google.com:19302"}, // STUN server URL
+			},
+			{
+				URLs:       []string{"turn:10.227.141.116:3478"}, // TURN server URL / ip
+				Username:   "username",                           // Username for TURN server
+				Credential: "password",                           // Password for TURN server
 			},
 		},
 	}
@@ -381,5 +381,4 @@ func handleMediaForAllClients() {
 		clientsMux.RUnlock()
 	}
 }
-
 

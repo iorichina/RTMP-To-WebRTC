@@ -76,8 +76,19 @@
         }
 
         ws = new WebSocket("ws://localhost:8080/ws");
+        // ws = new WebSocket("ws://10.227.141.113:8080/ws");
+
         pc = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+          iceServers: [
+            {
+              urls: "stun:stun.l.google.com:19302", // STUN server URL
+            },
+            {
+              urls: "turn:110.227.41.116:3478", // TURN server URL
+              username: "username", // Username for TURN server
+              credential: "password", // Password for TURN server
+            },
+          ],
         });
 
         // Add transceivers
@@ -94,6 +105,14 @@
         pc.onicecandidate = function (event) {
           if (!ws) return;
           if (event.candidate) {
+            // Log candidate type to identify STUN or TURN usage
+            // ---------------------------------------------------
+            if (event.candidate.candidate.includes("typ relay")) {
+              updateStatus("TURN server is being used");
+            } else if (event.candidate.candidate.includes("typ srflx")) {
+              updateStatus("STUN server is being used");
+            }
+            // ---------------------------------------------------
             ws.send(
               JSON.stringify({
                 type: "ice",
