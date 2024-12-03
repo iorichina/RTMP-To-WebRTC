@@ -45,26 +45,38 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// Add this at the top level of your code
+// type Client struct {
+// 	manager *WebRTCManager
+// 	active  bool
+// }
+
 var (
 	clients    = make(map[*WebRTCManager]bool)
 	clientsMux sync.RWMutex
-	// Single UDP listener for all clients
-	udpListener *net.UDPConn
+	// Separate UDP listeners for video and audio
+	videoListener *net.UDPConn
+	audioListener *net.UDPConn
 )
 
 func main() {
-	// Initialize UDP listener
+	// Initialize UDP listeners
 	var err error
-	udpListener, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 5004})
+	videoListener, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 5004})
 	if err != nil {
-		log.Fatal("Failed to start UDP listener:", err)
+		log.Fatal("Failed to start video UDP listener:", err)
 	}
-	defer udpListener.Close()
+	defer videoListener.Close()
 
-	go runTurnServer()
+	audioListener, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 5005})
+	if err != nil {
+		log.Fatal("Failed to start audio UDP listener:", err)
+	}
+	defer audioListener.Close()
 
-	// Start the media handling for all clients
-	go handleMediaForAllClients()
+	// Start separate handlers for video and audio
+	go handleVideoStream()
+	go handleAudioStream()
 
 	// Serve static files
 	fs := http.FileServer(http.Dir("static"))
@@ -124,15 +136,11 @@ func newWebRTCManager(wsConn *websocket.Conn) (*WebRTCManager, error) {
 	// Create API with MediaEngine
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
 
+	// Create PeerConnection with STUN server
 	config := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
-				URLs: []string{"stun:stun.l.google.com:19302"}, // STUN server URL
-			},
-			{
-				URLs:       []string{"turn:10.227.141.116:3478"}, // TURN server URL / ip
-				Username:   "username",                           // Username for TURN server
-				Credential: "password",                           // Password for TURN server
+				URLs: []string{"stun:stun.l.google.com:19302"},
 			},
 		},
 	}
@@ -322,58 +330,41 @@ func (m *WebRTCManager) monitorStreamStatus() {
 	}
 }
 
-// New function to handle media for all clients
-func handleMediaForAllClients() {
+func handleVideoStream() {
 	for {
-		inboundRTPPacket := make([]byte, 1500)
+		inboundRTPPacket := make([]byte, 2048) // Larger buffer for video
 		packet := &rtp.Packet{}
 
-		udpListener.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-		n, _, err := udpListener.ReadFrom(inboundRTPPacket)
+		videoListener.SetReadDeadline(time.Now().Add(20 * time.Millisecond))
+		n, _, err := videoListener.ReadFrom(inboundRTPPacket)
 		if err != nil {
 			if !os.IsTimeout(err) {
-				log.Printf("Error during read: %v", err)
+				log.Printf("Error during video read: %v", err)
 			}
 			continue
 		}
 
 		if err = packet.Unmarshal(inboundRTPPacket[:n]); err != nil {
-			log.Printf("Error unmarshaling RTP packet: %v", err)
+			log.Printf("Error unmarshaling video packet: %v", err)
 			continue
 		}
 
-		// Broadcast to all clients with their own buffers
 		clientsMux.RLock()
 		for manager := range clients {
-			// Clone the packet for each client to avoid race conditions
 			clonedPacket := &rtp.Packet{}
 			if err := clonedPacket.Unmarshal(inboundRTPPacket[:n]); err != nil {
-				log.Printf("Error cloning packet: %v", err)
+				log.Printf("Error cloning video packet: %v", err)
 				continue
 			}
 
-			switch clonedPacket.PayloadType {
-			case 96: // VP8 Video
-				manager.videoBuffer.Push(clonedPacket)
-				for {
-					sample := manager.videoBuffer.Pop()
-					if sample == nil {
-						break
-					}
-					if err := manager.videoTrack.WriteSample(*sample); err != nil {
-						log.Printf("Error writing video sample: %v", err)
-					}
+			manager.videoBuffer.Push(clonedPacket)
+			for {
+				sample := manager.videoBuffer.Pop()
+				if sample == nil {
+					break
 				}
-			case 111: // Opus Audio
-				manager.audioBuffer.Push(clonedPacket)
-				for {
-					sample := manager.audioBuffer.Pop()
-					if sample == nil {
-						break
-					}
-					if err := manager.audioTrack.WriteSample(*sample); err != nil {
-						log.Printf("Error writing audio sample: %v", err)
-					}
+				if err := manager.videoTrack.WriteSample(*sample); err != nil {
+					log.Printf("Error writing video sample: %v", err)
 				}
 			}
 			manager.lastPacketTime = time.Now()
@@ -381,4 +372,48 @@ func handleMediaForAllClients() {
 		clientsMux.RUnlock()
 	}
 }
+
+func handleAudioStream() {
+	for {
+		inboundRTPPacket := make([]byte, 1500) // Standard buffer size for audio
+		packet := &rtp.Packet{}
+
+		audioListener.SetReadDeadline(time.Now().Add(20 * time.Millisecond))
+		n, _, err := audioListener.ReadFrom(inboundRTPPacket)
+		if err != nil {
+			if !os.IsTimeout(err) {
+				log.Printf("Error during audio read: %v", err)
+			}
+			continue
+		}
+
+		if err = packet.Unmarshal(inboundRTPPacket[:n]); err != nil {
+			log.Printf("Error unmarshaling audio packet: %v", err)
+			continue
+		}
+
+		clientsMux.RLock()
+		for manager := range clients {
+			clonedPacket := &rtp.Packet{}
+			if err := clonedPacket.Unmarshal(inboundRTPPacket[:n]); err != nil {
+				log.Printf("Error cloning audio packet: %v", err)
+				continue
+			}
+
+			manager.audioBuffer.Push(clonedPacket)
+			for {
+				sample := manager.audioBuffer.Pop()
+				if sample == nil {
+					break
+				}
+				if err := manager.audioTrack.WriteSample(*sample); err != nil {
+					log.Printf("Error writing audio sample: %v", err)
+				}
+			}
+			manager.lastPacketTime = time.Now()
+		}
+		clientsMux.RUnlock()
+	}
+}
+
 
