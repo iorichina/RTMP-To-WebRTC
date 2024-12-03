@@ -35,12 +35,17 @@ go run main.go
     
 ## ffmpeg
 
+###### For Media file (.mp4)
 ```bash
 ffmpeg -re -i input.mp4 -map 0:v -c:v libvpx -deadline realtime -quality realtime -cpu-used 5 -bufsize 1000k -g 15 -r 30 -b:v 800k -static-thresh 0 -error-resilient 1 -max_delay 0 -buffer_size 0 -payload_type 96 -ssrc 1 -f rtp rtp://127.0.0.1:5004 -map 0:a -c:a libopus -b:a 48k -application lowdelay -frame_duration 20 -payload_type 111 -ssrc 2 -f rtp rtp://127.0.0.1:5005
 ```
 
-or
+###### For Webcam and Microphone
+```bash
+ffmpeg -f dshow -i video="Camera name":audio="Mic name" -map 0:v -c:v libvpx -deadline realtime -quality realtime -cpu-used 5 -bufsize 1000k -g 15 -r 30 -b:v 800k -s 640x480 -static-thresh 0 -error-resilient 1 -payload_type 96 -ssrc 1 -f rtp rtp://127.0.0.1:5004 -map 0:a -c:a libopus -b:a 48k -payload_type 111 -ssrc 2 -f rtp rtp://127.0.0.1:5005
+```
 
+###### For RTMP Link
 ```bash
 ffmpeg -re -i rtmp://your-rtmp-server/stream-key -map 0:v -c:v libvpx -deadline realtime -quality realtime -cpu-used 5 -bufsize 1000k -g 15 -r 30 -b:v 2M -s 1280x720 -static-thresh 0 -error-resilient 1 -payload_type 96 -ssrc 1 -f rtp rtp://127.0.0.1:5004 -map 0:a -c:a libopus -b:a 48k -application lowdelay -frame_duration 20 -payload_type 111 -ssrc 2 -f rtp rtp://127.0.0.1:5005
 ```
