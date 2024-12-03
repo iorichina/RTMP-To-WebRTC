@@ -142,6 +142,12 @@ func newWebRTCManager(wsConn *websocket.Conn) (*WebRTCManager, error) {
 			{
 				URLs: []string{"stun:stun.l.google.com:19302"},
 			},
+			//Change turn config according to your public ip
+			// {
+			// 	URLs:       []string{"turn:107.22.19.185:3478"}, // TURN server URL
+			// 	Username:   "username",                           // Username for TURN server
+			// 	Credential: "password",                           // Password for TURN server
+			// },
 		},
 	}
 
