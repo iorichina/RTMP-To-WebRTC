@@ -27,13 +27,21 @@ To install the required dependencies, follow these steps:
    go get github.com/pion/rtp
    go get github.com/gorilla/websocket
 
-## Start server
+## 1. Start server
 
 ```bash
 go run main.go
 ```
-    
-## ffmpeg
+
+## 2. Run Turn server
+
+```bash
+cd turn
+go build turn-server.go
+./turn-server -public-ip 127.0.0.1 -users username=password
+```
+
+## 3. ffmpeg
 
 ###### For Media file (.mp4)
 ```bash
