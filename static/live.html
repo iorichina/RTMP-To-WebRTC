@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WebRTC Stream</title>
+</head>
+
+<body>
+    <video name="videoElement" class="centeredVideo" controls autoplay id="webrtc-video" style="height: 80vh;">
+        请升级浏览器
+    </video>
+
+    <script>
+        /*
+         * Created by iorichina 21-8-20 上午10:00
+         */
+
+        const PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+
+        const playerDefaultOptions = {
+            url: '',
+            autoplay: true,
+        };
+
+        class Player {
+            constructor(video, options = {}) {
+                this.video = video;
+                this.options = {
+                    ...playerDefaultOptions,
+                    ...options
+                };
+
+                if (!this._checkArgs()) return;
+
+                try {
+                    this._init();
+                } catch (err) {
+                    this._handleError(err);
+                }
+            }
+
+            _init() {
+                const pc = new PeerConnection({
+                    sdpSemantics: 'unified-plan'
+                });
+                pc.ontrack = evt => {
+                    this.video.srcObject = evt.streams[0];
+                };
+                pc.addTransceiver('audio', {
+                    direction: 'recvonly'
+                });
+                pc.addTransceiver('video', {
+                    direction: 'recvonly'
+                });
+
+                pc.createOffer().then(offer => {
+                        return pc.setLocalDescription(offer).then(() => offer);
+                    }).then(offer => {
+                        return new Promise((resolve, reject) => {
+                            const data = {
+                                streamurl: this.options.url,
+                                sessionid: 'xxxxxxx_abcd_5664_harchar1',
+                                clientinfo: 'clientinfo_test',
+                                localsdp: {
+                                    type: 'offer',
+                                    sdp: offer.sdp
+                                }
+                            };
+                            // eslint-disable-next-line no-undef
+                            fetch('https://webrtc.liveplay.myqcloud.com/webrtc/v1/pullstream', {
+                                    method: 'POST',
+                                    body: JSON.stringify(data),
+                                    // eslint-disable-next-line no-undef
+                                    headers: new Headers({
+                                        'Content-Type': 'application/json'
+                                    })
+                                }).then(res => res.json())
+                                .then(json => resolve(json.remotesdp))
+                                .catch(err => reject(err));
+                        });
+                    }).then(answer => {
+                        // eslint-disable-next-line no-undef
+                        return pc.setRemoteDescription(new RTCSessionDescription({
+                            type: 'answer',
+                            sdp: answer.sdp
+                        }));
+                    })
+                    .catch(err => {
+                        this._handleError(err);
+                    });
+
+                if (this.options.autoplay) {
+                    this.video.muted = true;
+                    this.video.addEventListener('canplay', () => {
+                        this.video.play();
+                    }, {
+                        once: true
+                    });
+                }
+            }
+
+            _checkArgs() {
+                if (!this.video) {
+                    this._handleError('缺少video入参');
+                    return false;
+                }
+
+                if (!/^webrtc:\/\/.+/.test(this.options.url)) {
+                    this._handleError('只支持webrtc协议的url');
+                    return false;
+                }
+
+                return true;
+            }
+
+            _handleError(err) {
+                if (typeof this.options.onError === 'function') {
+                    if (typeof err === 'string') {
+                        err = new Error(err);
+                    }
+                    this.options.onError(err);
+                }
+            }
+        }
+
+        function webrtcPlayer(video, options) {
+            return new Player(video, options);
+        }
+
+        function webrtc_play(elemId, live_url) {
+            const videoEl = document.getElementById(elemId);
+            console.info(live_url);
+            webrtcPlayer(videoEl, {
+                url: live_url,
+                autoplay: true,
+                onError(err) {
+                    console.error(err);
+                }
+            });
+        }
+    </script>
+    <script>
+        let live_url = 'webrtc://txfast.liveplay.live.com/live/vc_1033';
+        webrtc_play('webrtc-video', live_url);
+    </script>
+</body>
+
+</html>
