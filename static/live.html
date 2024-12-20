@@ -57,6 +57,19 @@
                         return pc.setLocalDescription(offer).then(() => offer);
                     }).then(offer => {
                         return new Promise((resolve, reject) => {
+                            //请求 
+                            // {
+                            //     streamurl:  string //拉流地址
+                            //     sessionid:  string //业务生成的唯一key，标识本次拉流
+                            //     clientinfo: string //终端类型信息
+                            //     localsdp: {
+                            //         type: string
+                            //         sdp:  string
+                            //     }
+                            //     clientip:   string //客户端IP
+                            //     seipass:    int    //是否带SEI
+                            // }
+                            console.log("offer.sdp=", offer.sdp)
                             const data = {
                                 streamurl: this.options.url,
                                 sessionid: 'xxxxxxx_abcd_5664_harchar1',
@@ -67,6 +80,11 @@
                                 }
                             };
                             // eslint-disable-next-line no-undef
+                            //http信令包括，拉流和停流，由用户在app侧实现，具体定义请见《signal_http_protoc》
+                            //请求拉流
+                            // https://webrtc.liveplay.myqcloud.com/webrtc/v1/pullstream
+                            //停止拉流
+                            // https://webrtc.liveplay.myqcloud.com/webrtc/v1/stopstream
                             fetch('https://webrtc.liveplay.myqcloud.com/webrtc/v1/pullstream', {
                                     method: 'POST',
                                     body: JSON.stringify(data),
@@ -75,10 +93,21 @@
                                         'Content-Type': 'application/json'
                                     })
                                 }).then(res => res.json())
+                                //返回
+                                // {
+                                //     errcode:  int
+                                //     errmsg:   string
+                                //     remotesdp: {
+                                //         type: string
+                                //         sdp:  string
+                                //     }
+                                //     svrsig: string           //服务器签名，后面每个请求必须携带这个字段内容,业务无需理解字段内容
+                                // }
                                 .then(json => resolve(json.remotesdp))
                                 .catch(err => reject(err));
                         });
                     }).then(answer => {
+                        console.log("answer.sdp=", answer.sdp)
                         // eslint-disable-next-line no-undef
                         return pc.setRemoteDescription(new RTCSessionDescription({
                             type: 'answer',
