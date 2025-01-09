@@ -1,8 +1,9 @@
 module main.go
 
-go 1.23.2
+go 1.22.0
 
 require (
+	github.com/goccy/go-json v0.10.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/pion/rtp v1.8.9
 	github.com/pion/turn/v4 v4.0.0

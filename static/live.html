@@ -69,15 +69,11 @@
                             //     clientip:   string //客户端IP
                             //     seipass:    int    //是否带SEI
                             // }
-                            console.log("offer.sdp=", offer.sdp)
+                            console.log("offer.sdp=")
+                            console.log(offer.sdp)
                             const data = {
-                                streamurl: this.options.url,
-                                sessionid: 'xxxxxxx_abcd_5664_harchar1',
-                                clientinfo: 'clientinfo_test',
-                                localsdp: {
-                                    type: 'offer',
-                                    sdp: offer.sdp
-                                }
+                                type: "offer",
+                                sdp: offer.sdp
                             };
                             // eslint-disable-next-line no-undef
                             //http信令包括，拉流和停流，由用户在app侧实现，具体定义请见《signal_http_protoc》
@@ -85,7 +81,7 @@
                             // https://webrtc.liveplay.myqcloud.com/webrtc/v1/pullstream
                             //停止拉流
                             // https://webrtc.liveplay.myqcloud.com/webrtc/v1/stopstream
-                            fetch('https://webrtc.liveplay.myqcloud.com/webrtc/v1/pullstream', {
+                            fetch('http://127.0.0.1:8080/sdp', {
                                     method: 'POST',
                                     body: JSON.stringify(data),
                                     // eslint-disable-next-line no-undef
@@ -103,7 +99,7 @@
                                 //     }
                                 //     svrsig: string           //服务器签名，后面每个请求必须携带这个字段内容,业务无需理解字段内容
                                 // }
-                                .then(json => resolve(json.remotesdp))
+                                .then(json => resolve(json))
                                 .catch(err => reject(err));
                         });
                     }).then(answer => {
